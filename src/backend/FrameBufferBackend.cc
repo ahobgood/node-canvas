@@ -1,4 +1,8 @@
 #include "FrameBufferBackend.h"
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/ioctl.h>
+#include <sys/mman.h>
 
 using namespace v8;
 
@@ -20,12 +24,56 @@ FrameBufferBackend::~FrameBufferBackend()
 }
 
 bool FrameBufferBackend::InitFB() {
+	cerr << "FrameBufferBackend::InitFB(), width=" << width << ", height=" << height << ", path=" << m_fbPath << endl;
+
 	if (m_fbPath.empty()) {
 		SetErrStr("FrameBuffer backend must use 'fb:[device]' (e.g. 'fb:/dev/fb0')");
 		return false;
 	}
 
-	cerr << "FrameBufferBackend::Init(), width=" << width << ", height=" << height << ", path=" << m_fbPath << endl;
+	int fd = open(m_fbPath.c_str(), O_RDWR);
+	if (fd == -1) {
+		SetErrStr(string("Error opening framebuffer device: ") + strerror(errno));
+		return false;
+	}
+
+	struct fb_var_screeninfo vinfo;
+	struct fb_fix_screeninfo finfo;
+
+	if (ioctl(fd, FBIOGET_VSCREENINFO, &vinfo)) {
+		SetErrStr(string("Error retrieving VSCREENINFO data from framebuffer: ") + strerror(errno));
+		close(fd);
+		return false;
+	}
+
+	// back up the old vscreeninfo struct for later restoration?
+	// memcpy(&orig_vinfo, &vinfo, sizeof(struct fb_var_screeninfo));
+
+	vinfo.bits_per_pixel = 32;
+
+	if (ioctl(fd, FBIOPUT_VSCREENINFO, &vinfo)) {
+		SetErrStr(string("Error sending VSCREENINFO data to framebuffer: ") + strerror(errno));
+		close(fd);
+		return false;
+	}
+
+	if (ioctl(fd, FBIOGET_FSCREENINFO, &finfo)) {
+		SetErrStr(string("Error retrieving FSCREENINFO data to framebuffer: ") + strerror(errno));
+		close(fd);
+		return false;
+	}
+
+	size_t screenSize = finfo.smem_len;
+	void *fbp = (char*)mmap(0, screenSize, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+	// bbp = (char *)malloc(screenSize);
+
+	if ((int)fbp == -1) {
+		SetErrStr(string("Error during framebuffer mmap(): ") + strerror(errno));
+		close(fd);
+		return false;
+	}
+
+	cerr << "FrameBufferBackend::InitFB(): done!" << endl;
 
 	return true;
 }

@@ -100,7 +100,7 @@ NAN_METHOD(Canvas::New) {
         backend = new SvgBackend(width, height);
       else if (0 == strncmp("fb", *String::Utf8Value(info[2]), 2)) {
         FrameBufferBackend* fbbe = new FrameBufferBackend(width, height, *String::Utf8Value(info[2]));
-        if (!fbbe->InitFB()) return Nan::ThrowTypeError(fbbe->ErrStr().c_str());
+        if (!fbbe->InitFB()) return Nan::ThrowError(fbbe->ErrStr().c_str());
         backend = reinterpret_cast<Backend*>(fbbe);
       } else
         backend = new ImageBackend(width, height);

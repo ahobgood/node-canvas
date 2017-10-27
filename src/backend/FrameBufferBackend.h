@@ -3,6 +3,7 @@
 
 #include <v8.h>
 #include <string>
+#include <linux/fb.h>
 
 #include "ImageBackend.h"
 
