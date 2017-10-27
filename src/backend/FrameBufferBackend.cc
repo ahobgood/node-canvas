@@ -8,8 +8,10 @@ using namespace v8;
 
 FrameBufferBackend::FrameBufferBackend(int width, int height, string path)
 	: ImageBackend(width, height)
+	, m_fbfd(-1)
+	, m_screenBufSize(0)
+	, m_screenBuf(NULL)
 	{
-
 	size_t path_pos = string::npos;
 	path_pos = path.find(':');
 	if (string::npos != path_pos) m_fbPath.assign(path.substr(path_pos + 1));
@@ -24,7 +26,7 @@ FrameBufferBackend::~FrameBufferBackend()
 }
 
 bool FrameBufferBackend::InitFB() {
-	cerr << "FrameBufferBackend::InitFB(), width=" << width << ", height=" << height << ", path=" << m_fbPath << endl;
+	// cerr << "FrameBufferBackend::InitFB(), width=" << width << ", height=" << height << ", path=" << m_fbPath << endl;
 
 	if (m_fbPath.empty()) {
 		SetErrStr("FrameBuffer backend must use 'fb:[device]' (e.g. 'fb:/dev/fb0')");
@@ -37,8 +39,8 @@ bool FrameBufferBackend::InitFB() {
 		return false;
 	}
 
+
 	struct fb_var_screeninfo vinfo;
-	struct fb_fix_screeninfo finfo;
 
 	if (ioctl(fd, FBIOGET_VSCREENINFO, &vinfo)) {
 		SetErrStr(string("Error retrieving VSCREENINFO data from framebuffer: ") + strerror(errno));
@@ -46,8 +48,8 @@ bool FrameBufferBackend::InitFB() {
 		return false;
 	}
 
-	// back up the old vscreeninfo struct for later restoration?
-	// memcpy(&orig_vinfo, &vinfo, sizeof(struct fb_var_screeninfo));
+	// back up the old vscreeninfo struct for later restoration
+	memcpy(&m_origScreenVarInfo, &vinfo, sizeof(struct fb_var_screeninfo));
 
 	vinfo.bits_per_pixel = 32;
 
@@ -57,23 +59,36 @@ bool FrameBufferBackend::InitFB() {
 		return false;
 	}
 
-	if (ioctl(fd, FBIOGET_FSCREENINFO, &finfo)) {
+	if (ioctl(fd, FBIOGET_FSCREENINFO, &m_screenFixInfo)) {
 		SetErrStr(string("Error retrieving FSCREENINFO data to framebuffer: ") + strerror(errno));
 		close(fd);
 		return false;
 	}
 
-	size_t screenSize = finfo.smem_len;
-	void *fbp = (char*)mmap(0, screenSize, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-	// bbp = (char *)malloc(screenSize);
+	m_screenBufSize = m_screenFixInfo.smem_len;
+	void *fb = (char*)mmap(0, m_screenBufSize, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 
-	if ((int)fbp == -1) {
+	if ((int)fb == -1) {
 		SetErrStr(string("Error during framebuffer mmap(): ") + strerror(errno));
 		close(fd);
 		return false;
 	}
 
-	cerr << "FrameBufferBackend::InitFB(): done!" << endl;
+	m_screenBuf = fb;
+	m_fbfd = fd;
+
+	// cerr << "FrameBufferBackend::InitFB(): done!" << endl;
+
+	return true;
+}
+
+bool FrameBufferBackend::blit(const unsigned char *data) {
+	if (NULL == m_screenBuf) {
+		SetErrStr(string("Error performing blit: framebuffer memory unavailable"));
+		return false;
+	}
+
+	memcpy(m_screenBuf, data, m_screenBufSize);
 
 	return true;
 }

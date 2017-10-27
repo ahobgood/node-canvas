@@ -255,6 +255,23 @@ NAN_METHOD(Canvas::ToBuffer) {
     return;
   }
 
+  if (info.Length() >= 1 && info[0]->StrictEquals(Nan::New<String>("fbblit").ToLocalChecked())) {
+    cairo_surface_t *surface = canvas->surface();
+    cairo_surface_flush(surface);
+    const unsigned char *data = cairo_image_surface_get_data(surface);
+
+    // blit to framebuffer
+    bool done = false;
+
+    FrameBufferBackend* fbbe = dynamic_cast<FrameBufferBackend*>(canvas->backend());
+    if (fbbe != NULL) {
+      done = fbbe->blit(data);
+    }
+
+    info.GetReturnValue().Set(Nan::New<v8::BooleanObject>(done));
+    return;
+  }
+
   if (info.Length() > 1 && !(info[1]->IsUndefined() && info[2]->IsUndefined())) {
     if (!info[1]->IsUndefined()) {
         bool good = true;

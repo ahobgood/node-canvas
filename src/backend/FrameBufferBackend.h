@@ -16,11 +16,18 @@ class FrameBufferBackend : public ImageBackend
     string m_lastErrorString;
     inline void SetErrStr(string str) { m_lastErrorString.assign(str); };
 
+    int m_fbfd;
+    size_t m_screenBufSize;
+    void *m_screenBuf;
+    struct fb_var_screeninfo m_origScreenVarInfo;
+    struct fb_fix_screeninfo m_screenFixInfo;
+
   public:
     FrameBufferBackend(int width, int height, string path);
     ~FrameBufferBackend();
 
     bool InitFB();
+    bool blit(const unsigned char *data);
     inline const string ErrStr() { return m_lastErrorString; };
 
     static Nan::Persistent<v8::FunctionTemplate> constructor;

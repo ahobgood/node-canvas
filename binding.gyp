@@ -57,6 +57,8 @@
     },
     {
       'target_name': 'canvas',
+      'cflags_cc!': [ '-fno-rtti' ],
+      'cflags_cc+': [ '-frtti' ],
       'include_dirs': ["<!(node -e \"require('nan')\")"],
       'sources': [
         'src/backend/Backend.cc',
