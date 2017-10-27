@@ -260,16 +260,14 @@ NAN_METHOD(Canvas::ToBuffer) {
     cairo_surface_flush(surface);
     const unsigned char *data = cairo_image_surface_get_data(surface);
 
-    // blit to framebuffer
-    bool done = false;
-
+    // using a dynamic_cast here saves us a lot of effort, but requires -fno-rtti to be disabled in bindings.gyp
     FrameBufferBackend* fbbe = dynamic_cast<FrameBufferBackend*>(canvas->backend());
     if (fbbe != NULL) {
-      done = fbbe->blit(data);
+      // blit to framebuffer
+      fbbe->blit(data);
+    } else {
+      return Nan::ThrowTypeError("Can only use toBuffer('fbblit') on canvas backed by a framebuffer (type 'fb:[device]')");
     }
-
-    info.GetReturnValue().Set(Nan::New<v8::BooleanObject>(done));
-    return;
   }
 
   if (info.Length() > 1 && !(info[1]->IsUndefined() && info[2]->IsUndefined())) {
