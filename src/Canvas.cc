@@ -265,6 +265,7 @@ NAN_METHOD(Canvas::ToBuffer) {
     if (fbbe != NULL) {
       // blit to framebuffer
       fbbe->blit(data);
+      return;
     } else {
       return Nan::ThrowTypeError("Can only use toBuffer('fbblit') on canvas backed by a framebuffer (type 'fb:[device]')");
     }
