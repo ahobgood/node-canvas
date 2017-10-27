@@ -28,6 +28,7 @@
 #include "backend/ImageBackend.h"
 #include "backend/PdfBackend.h"
 #include "backend/SvgBackend.h"
+#include "backend/FrameBufferBackend.h"
 
 #define GENERIC_FACE_ERROR \
   "The second argument to registerFont is required, and should be an object " \
@@ -97,7 +98,11 @@ NAN_METHOD(Canvas::New) {
         backend = new PdfBackend(width, height);
       else if (0 == strcmp("svg", *String::Utf8Value(info[2])))
         backend = new SvgBackend(width, height);
-      else
+      else if (0 == strncmp("fb", *String::Utf8Value(info[2]), 2)) {
+        FrameBufferBackend* fbbe = new FrameBufferBackend(width, height, *String::Utf8Value(info[2]));
+        if (!fbbe->InitFB()) return Nan::ThrowTypeError(fbbe->ErrStr().c_str());
+        backend = reinterpret_cast<Backend*>(fbbe);
+      } else
         backend = new ImageBackend(width, height);
     }
     else
